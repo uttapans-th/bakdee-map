@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>แผนที่ภักดีพณิชยการ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Mitr:wght@400;500;600&display=swap">
+<style>
+/* Layout: portrait cartoon campus map as the page; sticky search bar on top; directions in a side panel (desktop) or bottom sheet (phone).
+   Single bright storybook look by choice — colors are set explicitly, no dark variant. */
+:root{
+  color-scheme: light;
+  --bg:#e6f3dc;
+  --paper:#fffdf7;
+  --ink:#3e2c1f;
+  --muted:#7b6a57;
+  --line:#e8dcc4;
+  --green:#2e7d4f;
+  --green-soft:#e2f3e4;
+  --route:#ff5a36;
+  --route-soft:#ffe6de;
+  --sky:#bfe7f7;
+  --display:"Mitr","Anuphan",Thonburi,"Leelawadee UI","Noto Sans Thai",sans-serif;
+  --body:"Anuphan",-apple-system,BlinkMacSystemFont,Thonburi,"Leelawadee UI","Noto Sans Thai",sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:31;background:var(--paper)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--route);outline-offset:2px}
+
+/* top bar */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--paper);border-bottom:2px solid var(--line)}
+.tb-inner{max-width:1100px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.brand{display:flex;gap:10px;align-items:center;min-width:0}
+.brand-mark{flex:none;width:40px;height:40px;border-radius:12px;background:#ff7a45;color:#fff;font-family:var(--display);font-weight:600;font-size:22px;display:grid;place-items:center;border:2px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.brand b{display:block;font-family:var(--display);font-weight:500;font-size:17px;line-height:1.2}
+.brand small{display:block;color:var(--muted);font-size:12.5px;line-height:1.3}
+.tools{display:flex;flex-wrap:wrap;gap:8px;flex:1 1 440px;min-width:0;justify-content:flex-end}
+.search{position:relative;flex:1 1 220px;min-width:0}
+.field{width:100%;height:42px;border:2px solid var(--line);border-radius:12px;background:#fff;padding:0 12px}
+.field:focus{border-color:var(--green);outline:none}
+.start{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0}
+.start span{font-size:13px;color:var(--muted);white-space:nowrap}
+.start select{height:42px;border:2px solid var(--line);border-radius:12px;background:#fff;padding:0 8px;max-width:210px;min-width:0}
+.qr-btn{height:42px;padding:0 14px;border-radius:12px;border:2px solid var(--ink);background:#ffd84a;font-family:var(--display);font-weight:500;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.qr-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.results{position:absolute;left:0;right:0;top:46px;z-index:5;list-style:none;margin:0;padding:6px;background:#fff;border:2px solid var(--ink);border-radius:14px;box-shadow:0 5px 0 rgba(62,44,31,.18);max-height:320px;overflow:auto}
+.results li button{width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:9px;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+.results li button:hover,.results li button.active{background:var(--green-soft)}
+.results .code{grid-row:span 2;align-self:center;font-family:var(--display);font-size:13px;background:var(--ink);color:#fff;border-radius:7px;padding:2px 7px;font-variant-numeric:tabular-nums}
+.results .rn{font-weight:600;line-height:1.3}
+.results .rm{font-size:12.5px;color:var(--muted)}
+.results .none{padding:10px;color:var(--muted)}
+
+/* stage */
+.stage{max-width:1100px;margin:0 auto;padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,560px);justify-content:center;gap:24px}
+.mapwrap{position:relative;min-width:0}
+#map{display:block;width:100%;height:auto;border-radius:24px;border:3px solid var(--ink);box-shadow:0 6px 0 rgba(62,44,31,.22);background:var(--sky);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#map text{font-family:var(--display)}
+.bld{cursor:pointer;transform-box:fill-box;transition:transform .18s ease,opacity .25s}
+.bld:hover,.bld:focus-visible,.bld.is-open{transform:translateY(-4px)}
+.bld:focus{outline:none}
+.bld:focus-visible .bld-front{stroke:var(--route);stroke-width:3}
+.bld.is-open .pill-bg{stroke:var(--green);stroke-width:2.5}
+.navigating .bld:not(.is-target){opacity:.5}
+.bld.is-target{animation:hop 1.4s ease-in-out infinite}
+.bld.is-target .pill-bg{fill:var(--route);stroke:var(--ink)}
+.bld.is-target .pill-text{fill:#fff}
+@keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.route-line{fill:none;stroke:var(--route);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1 10;animation:march .7s linear infinite}
+.route-under{fill:none;stroke:#fff;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;opacity:.85}
+@keyframes march{to{stroke-dashoffset:-11}}
+.pulse{animation:pulse 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{0%{transform:scale(.6);opacity:.8}100%{transform:scale(1.8);opacity:0}}
+@media (prefers-reduced-motion:reduce){.bld.is-target,.route-line,.pulse{animation:none}.bld{transition:none}}
+
+/* building popup */
+.pop{position:absolute;z-index:20;width:310px;max-height:min(72vh,480px);display:flex;flex-direction:column;background:var(--paper);border:2.5px solid var(--ink);border-radius:18px;box-shadow:0 6px 0 rgba(62,44,31,.22)}
+.pop-head{display:flex;gap:10px;align-items:flex-start;padding:14px 14px 10px;border-bottom:2px dashed var(--line)}
+.badge{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:18px;border:2px solid var(--ink)}
+.pop-title{flex:1;min-width:0}
+.pop-title h2{margin:0;font-family:var(--display);font-weight:500;font-size:17px;line-height:1.3;text-wrap:balance}
+.pop-title p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.x-btn{flex:none;width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:#fff;cursor:pointer;font-size:18px;line-height:1;display:grid;place-items:center}
+.pop-body{overflow:auto;padding:8px 10px 10px;flex:1;min-height:0}
+.floor{display:grid;gap:4px;padding-block:6px}
+.floor h3{margin:0 4px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--muted)}
+.room{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;width:100%;text-align:left;border:2px solid transparent;background:#fff;border-radius:11px;padding:7px 9px;cursor:pointer;box-shadow:0 1px 0 var(--line)}
+.room:hover{border-color:var(--line)}
+.room[aria-pressed="true"]{border-color:var(--route);background:var(--route-soft)}
+.room .code{font-family:var(--display);font-size:12.5px;background:var(--green-soft);color:var(--green);border-radius:7px;padding:1px 7px;font-variant-numeric:tabular-nums}
+.room[aria-pressed="true"] .code{background:var(--route);color:#fff}
+.room .rn{line-height:1.3}
+.pop-foot{padding:10px 12px 12px;border-top:2px dashed var(--line)}
+.pop-foot .tip{margin:0;font-size:13px;color:var(--muted);text-align:center}
+.pick{margin:0 0 8px;font-size:13.5px;line-height:1.35}
+.pick b{font-weight:600}
+.go{width:100%;height:46px;border-radius:14px;border:2.5px solid var(--ink);background:var(--route);color:#fff;font-family:var(--display);font-weight:500;font-size:16px;cursor:pointer;box-shadow:0 4px 0 var(--ink);display:flex;align-items:center;justify-content:center;gap:8px}
+.go:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+
+/* directions panel */
+.nav{background:var(--paper);border:2.5px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 rgba(62,44,31,.22);min-width:0}
+.nav-head{display:flex;gap:10px;align-items:flex-start;padding:14px 14px 12px;border-bottom:2px dashed var(--line)}
+.nav-head .t{flex:1;min-width:0}
+.eyebrow{margin:0;font-size:12px;font-weight:600;letter-spacing:.05em;color:var(--route)}
+.nav-head h2{margin:2px 0 4px;font-family:var(--display);font-weight:500;font-size:19px;line-height:1.3;text-wrap:balance}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12.5px;background:var(--green-soft);color:var(--green);border-radius:999px;padding:2px 10px;font-variant-numeric:tabular-nums}
+.min-btn{display:none}
+.steps{list-style:none;margin:0;padding:14px 14px 18px;display:grid;gap:14px;counter-reset:s}
+.steps>li{display:grid;grid-template-columns:36px 1fr;gap:12px;counter-increment:s;min-width:0}
+.steps>li::before{content:counter(s);width:36px;height:36px;border-radius:50%;background:var(--ink);color:#fff;font-family:var(--display);font-weight:500;font-size:17px;display:grid;place-items:center}
+.steps>li.done::before{content:"✓";background:var(--route)}
+.steps .st{min-width:0}
+.steps h3{margin:5px 0 2px;font-family:var(--display);font-weight:500;font-size:16px;line-height:1.35}
+.steps p{margin:0;font-size:13.5px;color:var(--muted)}
+.sub{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:14px}
+.sub li{position:relative;padding-left:16px}
+.sub li::before{content:"";position:absolute;left:3px;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--route)}
+.corridor{margin-top:8px;max-width:100%;overflow-x:auto}
+.corridor svg{display:block;width:100%;max-width:320px;height:auto}
+.corridor text{font-family:var(--body)}
+
+/* QR modal */
+.modal{position:fixed;inset:0;z-index:60;background:rgba(40,30,20,.45);display:grid;place-items:center;padding:20px}
+.modal-card{width:min(340px,100%);background:var(--paper);border:2.5px solid var(--ink);border-radius:22px;box-shadow:0 6px 0 rgba(62,44,31,.3);padding:20px;text-align:center;position:relative}
+.modal-card h2{margin:0 0 4px;font-family:var(--display);font-weight:500;font-size:19px}
+.modal-card p{margin:0 0 14px;font-size:13.5px;color:var(--muted)}
+.modal-card .x-btn{position:absolute;right:12px;top:12px}
+#qrBox{display:grid;place-items:center;min-height:228px;background:#fff;border-radius:14px;border:2px solid var(--line);padding:10px}
+#qrBox img,#qrBox canvas{max-width:100%;height:auto}
+.link-row{display:flex;gap:6px;margin-top:12px}
+.link-row input{flex:1;min-width:0;height:38px;border:2px solid var(--line);border-radius:10px;padding:0 8px;font-size:12.5px;background:#fff}
+.link-row button{height:38px;padding:0 12px;border-radius:10px;border:2px solid var(--ink);background:#fff;cursor:pointer;font-family:var(--display)}
+
+@media (min-width:960px){
+  .stage.has-nav{grid-template-columns:minmax(0,560px) 380px;align-items:start}
+  .stage.has-nav .nav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px);max-height:calc(100vh - 110px);overflow:auto}
+}
+@media (max-width:959px){
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;max-height:46vh;overflow:auto;border-radius:22px 22px 0 0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .nav-head{position:sticky;top:0;background:var(--paper);z-index:1;border-radius:22px 22px 0 0}
+  .min-btn{display:grid}
+  .nav.min .steps{display:none}
+  .nav.min .nav-head{border-bottom:0}
+  .stage.has-nav{padding-bottom:48vh}
+}
+@media (max-width:639px){
+  .pop{position:fixed;left:0!important;right:0;bottom:0;top:auto!important;width:auto;max-height:66vh;border-radius:22px 22px 0 0;border-bottom:0;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);z-index:45}
+  .topbar{position:static}
+  .start select{max-width:none;flex:1}
+  .start{flex:1 1 100%}
+  .brand small{font-size:12px}
+}
+</style>
+
+<header class="topbar">
+  <div class="tb-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">ภ</span>
+      <div><b>แผนที่นำทางในวิทยาลัย</b><small>วิทยาลัยอาชีวศึกษาภักดีพณิชยการและเทคโนโลยี</small></div>
+    </div>
+    <div class="tools">
+      <div class="search">
+        <input id="q" class="field" type="search" placeholder="ค้นหาห้อง เช่น การเงิน หรือ 4301" autocomplete="off" aria-label="ค้นหาห้อง" aria-controls="results">
+        <ul id="results" class="results" hidden></ul>
+      </div>
+      <label class="start"><span>ฉันอยู่ที่</span><select id="start" aria-label="จุดเริ่มต้น"></select></label>
+      <button id="qrBtn" class="qr-btn" type="button">QR</button>
+    </div>
+  </div>
+</header>
+
+<main id="stage" class="stage">
+  <div id="mapwrap" class="mapwrap">
+    <svg id="map" viewBox="0 0 400 760" aria-label="แผนที่วิทยาลัยแบบการ์ตูน แสดงอาคาร 6 หลัง"></svg>
+    <div id="pop" class="pop" hidden role="dialog" aria-label="รายชื่อห้องในอาคาร"></div>
+  </div>
+  <aside id="nav" class="nav" hidden aria-live="polite"></aside>
+</main>
+
+<div id="qrModal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-label="QR code ของแผนที่">
+    <button class="x-btn" type="button" data-close aria-label="ปิด">×</button>
+    <h2>สแกนเพื่อเปิดแผนที่</h2>
+    <p>ใช้กล้องมือถือสแกน แล้วแตะลิงก์ที่ขึ้นมา</p>
+    <div id="qrBox"></div>
+    <div class="link-row"><input id="shareLink" readonly aria-label="ลิงก์แผนที่"><button id="copyBtn" type="button">คัดลอก</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const SHARE_URL = "https://uttapans-th.github.io/bakdee-map/";
+
+/* ---------- ข้อมูลสมมุติ: อาคาร 6 หลัง ---------- */
+// pos: start = ต้นอาคาร, middle = กลางอาคาร, end = สุดอาคาร | side: ทิศเมื่อเดินออกจากบันได/ประตูเข้าทางเดิน
+const BUILDINGS = [
+  {id:"b1", no:1, name:"อาคารอำนวยการ", short:"อำนวยการ", cx:295, fy:590, w:116, floors:3, lift:false, style:"flat", color:"#ffd6ad", roof:"#e3795b",
+   rooms:[
+    {code:"1101", name:"ประชาสัมพันธ์", floor:1, pos:"start", side:"right"},
+    {code:"1102", name:"งานทะเบียนและวัดผล", floor:1, pos:"middle", side:"left"},
+    {code:"1103", name:"งานการเงินและบัญชี", floor:1, pos:"middle", side:"right", note:"เปิดรับชำระเงิน 08:30–15:30 น."},
+    {code:"1201", name:"ห้องผู้อำนวยการ", floor:2, pos:"end", side:"left"},
+    {code:"1202", name:"ฝ่ายบริหารทรัพยากร", floor:2, pos:"start", side:"right"},
+    {code:"1203", name:"ห้องประชุมภักดี 1", floor:2, pos:"end", side:"right"},
+    {code:"1301", name:"ฝ่ายวิชาการ", floor:3, pos:"start", side:"left"},
+    {code:"1302", name:"งานแนะแนวและทุนการศึกษา", floor:3, pos:"middle", side:"right"},
+    {code:"1303", name:"ห้องประชุมภักดี 2", floor:3, pos:"end", side:"left"}]},
+  {id:"b2", no:2, name:"อาคารการบัญชีและการเงิน", short:"บัญชีและการเงิน", cx:105, fy:448, w:116, floors:4, lift:false, style:"flat", color:"#c4e4ff", roof:"#4b8fd1",
+   rooms:[
+    {code:"2101", name:"ธนาคารโรงเรียนจำลอง", floor:1, pos:"start", side:"left"},
+    {code:"2102", name:"ห้องพักครูสาขาการบัญชี", floor:1, pos:"end", side:"right"},
+    {code:"2201", name:"ห้องปฏิบัติการบัญชีคอมพิวเตอร์ 1", floor:2, pos:"start", side:"right"},
+    {code:"2202", name:"ห้องเรียน 2202", floor:2, pos:"middle", side:"left"},
+    {code:"2203", name:"ห้องเรียน 2203", floor:2, pos:"end", side:"left"},
+    {code:"2301", name:"ห้องปฏิบัติการบัญชีคอมพิวเตอร์ 2", floor:3, pos:"middle", side:"right"},
+    {code:"2302", name:"ห้องเรียน 2302", floor:3, pos:"end", side:"left"},
+    {code:"2401", name:"ห้องเรียน 2401", floor:4, pos:"start", side:"left"},
+    {code:"2402", name:"ห้องสำนักงานบัญชีจำลอง", floor:4, pos:"end", side:"right"}]},
+  {id:"b3", no:3, name:"อาคารเทคโนโลยีสารสนเทศ", short:"เทคโนโลยีสารสนเทศ", cx:295, fy:448, w:116, floors:5, lift:true, style:"flat", color:"#dccdfd", roof:"#7b5fd0",
+   rooms:[
+    {code:"3101", name:"ศูนย์ซ่อมบำรุงคอมพิวเตอร์", floor:1, pos:"middle", side:"left"},
+    {code:"3102", name:"ห้องพักครูสาขาเทคโนโลยีสารสนเทศ", floor:1, pos:"end", side:"right"},
+    {code:"3201", name:"ห้องปฏิบัติการคอมพิวเตอร์ 1", floor:2, pos:"start", side:"left"},
+    {code:"3202", name:"ห้องปฏิบัติการคอมพิวเตอร์ 2", floor:2, pos:"end", side:"left"},
+    {code:"3301", name:"ห้องปฏิบัติการเครือข่าย", floor:3, pos:"middle", side:"right"},
+    {code:"3302", name:"ห้องกราฟิกและมัลติมีเดีย", floor:3, pos:"end", side:"left"},
+    {code:"3401", name:"สตูดิโอถ่ายทำวิดีโอ", floor:4, pos:"start", side:"right"},
+    {code:"3402", name:"ห้องพัฒนาเกมและแอปพลิเคชัน", floor:4, pos:"end", side:"right"},
+    {code:"3501", name:"ห้องอบรม Smart Classroom", floor:5, pos:"middle", side:"left"}]},
+  {id:"b4", no:4, name:"อาคารการตลาดและโลจิสติกส์", short:"การตลาด · โลจิสติกส์", cx:105, fy:268, w:116, floors:4, lift:true, style:"flat", color:"#ffeaa0", roof:"#e2a42b",
+   rooms:[
+    {code:"4101", name:"ร้านค้าปลีกจำลอง", floor:1, pos:"start", side:"right"},
+    {code:"4102", name:"ห้องพักครูสาขาการตลาด", floor:1, pos:"end", side:"left"},
+    {code:"4201", name:"ศูนย์ภาษาอังกฤษ", floor:2, pos:"middle", side:"left"},
+    {code:"4202", name:"ห้องภาษาจีน", floor:2, pos:"end", side:"right"},
+    {code:"4301", name:"ห้องปฏิบัติการโลจิสติกส์", floor:3, pos:"end", side:"left"},
+    {code:"4302", name:"ห้องเรียน 4302", floor:3, pos:"start", side:"right"},
+    {code:"4401", name:"ห้องดิจิทัลมาร์เก็ตติ้ง", floor:4, pos:"middle", side:"right"},
+    {code:"4402", name:"ห้องเรียน 4402", floor:4, pos:"end", side:"left"}]},
+  {id:"b5", no:5, name:"อาคารหอประชุมและห้องสมุด", short:"หอประชุม · ห้องสมุด", cx:295, fy:268, w:116, floors:2, lift:false, style:"gable", color:"#ffcfd9", roof:"#d9536f",
+   rooms:[
+    {code:"5101", name:"หอประชุมภักดีพณิชย์", floor:1, pos:"middle", side:"left", note:"ประตูใหญ่อยู่ซ้ายมือกลางโถง จุผู้ชมได้ 600 ที่นั่ง"},
+    {code:"5102", name:"ห้องควบคุมแสงและเสียง", floor:1, pos:"end", side:"right"},
+    {code:"5201", name:"ห้องสมุด", floor:2, pos:"start", side:"left", note:"เปิด 07:30–17:00 น."},
+    {code:"5202", name:"ห้อง e-Learning", floor:2, pos:"end", side:"right"}]},
+  {id:"b6", no:6, name:"อาคารโรงอาหารและกิจกรรม", short:"โรงอาหาร · กิจกรรม", cx:105, fy:590, w:116, floors:2, lift:false, style:"canteen", color:"#cdf1c9", roof:"#3d9f68",
+   rooms:[
+    {code:"6101", name:"โรงอาหาร", floor:1, pos:"start", side:"left"},
+    {code:"6102", name:"ห้องพยาบาล", floor:1, pos:"end", side:"right"},
+    {code:"6103", name:"สหกรณ์ร้านค้า", floor:1, pos:"middle", side:"right"},
+    {code:"6201", name:"งานกิจกรรมนักเรียนนักศึกษา", floor:2, pos:"start", side:"right"},
+    {code:"6202", name:"ห้องชมรม อวท.", floor:2, pos:"middle", side:"left"},
+    {code:"6203", name:"ห้องดนตรี", floor:2, pos:"end", side:"left"}]}
+];
+BUILDINGS.forEach(b => b.rooms.forEach(r => r.b = b));
+const ALL_ROOMS = BUILDINGS.flatMap(b => b.rooms);
+
+/* ---------- เส้นทางเดินในวิทยาลัย (กราฟ) ---------- */
+const N = {
+  gate:{x:200,y:742,name:"ประตูทางเข้าหลัก"},
+  jp:{x:200,y:680,name:"ทางแยกลานจอดรถ"},
+  park:{x:140,y:680,name:"ลานจอดรถ"},
+  j1:{x:200,y:612,name:"สี่แยกหน้าโรงอาหาร"},
+  n6:{x:105,y:612,name:"หน้าอาคาร 6"}, n1:{x:295,y:612,name:"หน้าอาคาร 1"},
+  flag:{x:200,y:470,name:"ลานเสาธง"},
+  n2:{x:105,y:470,name:"หน้าอาคาร 2"}, n3:{x:295,y:470,name:"หน้าอาคาร 3"},
+  jt:{x:200,y:290,name:"สี่แยกสวนหย่อม"},
+  n4:{x:105,y:290,name:"หน้าอาคาร 4"}, n5:{x:295,y:290,name:"หน้าอาคาร 5"},
+  back:{x:200,y:178,name:"ประตูหลัง"}
+};
+BUILDINGS.forEach(b => { N["d"+b.no] = {x:b.cx, y:b.fy+1, name:"ประตูอาคาร "+b.no, building:b}; });
+const MAIN="ถนนสายหลัก", MID="ถนนสายกลาง", TOP="ถนนสายใน", LOW="ถนนหน้าโรงอาหาร", PARK="ทางเข้าลานจอดรถ", STUB="ทางเดินเข้าอาคาร";
+const EDGES = [
+  ["gate","jp",MAIN],["jp","j1",MAIN],["j1","flag",MAIN],["flag","jt",MAIN],["jt","back",MAIN],
+  ["jp","park",PARK],
+  ["n6","j1",LOW],["j1","n1",LOW],
+  ["n2","flag",MID],["flag","n3",MID],
+  ["n4","jt",TOP],["jt","n5",TOP],
+  ...BUILDINGS.map(b => ["n"+b.no,"d"+b.no,STUB])
+];
+const ADJ = {};
+EDGES.forEach(([a,b,road]) => {
+  const d = Math.hypot(N[a].x-N[b].x, N[a].y-N[b].y);
+  (ADJ[a] ||= []).push({to:b,d,road}); (ADJ[b] ||= []).push({to:a,d,road});
+});
+const START_POINTS = [
+  {id:"gate", label:"ประตูทางเข้าหลัก"},
+  {id:"park", label:"ลานจอดรถ"},
+  {id:"back", label:"ประตูหลัง"},
+  {id:"flag", label:"ลานเสาธง"},
+  ...BUILDINGS.map(b => ({id:"d"+b.no, label:`หน้าอาคาร ${b.no} (${b.short.replace(" · ","/")})`}))
+];
+const M_PER_UNIT = 0.75;
+
+function shortestPath(from, to){
+  const dist = {[from]:0}, prev = {}, seen = new Set();
+  while (true){
+    let u = null;
+    for (const k in dist) if (!seen.has(k) && (u === null || dist[k] < dist[u])) u = k;
+    if (u === null || u === to) break;
+    seen.add(u);
+    for (const e of ADJ[u]) {
+      const nd = dist[u] + e.d;
+      if (dist[e.to] === undefined || nd < dist[e.to]) { dist[e.to] = nd; prev[e.to] = {node:u, road:e.road}; }
+    }
+  }
+  const nodes = [to], roads = [];
+  let c = to;
+  while (c !== from) { roads.unshift(prev[c].road); c = prev[c].node; nodes.unshift(c); }
+  return {nodes, roads, length: dist[to]};
+}
+function turnAt(a, b, c){
+  const v1x=b.x-a.x, v1y=b.y-a.y, v2x=c.x-b.x, v2y=c.y-b.y;
+  const ang = Math.atan2(v1x*v2y - v1y*v2x, v1x*v2x + v1y*v2y) * 180 / Math.PI; // y ชี้ลง: ค่าบวก = เลี้ยวขวา
+  return Math.abs(ang) < 30 ? "straight" : ang > 0 ? "right" : "left";
+}
+const TURN = {left:"เลี้ยวซ้าย", right:"เลี้ยวขวา", straight:"เดินตรงไป"};
+
+function outdoorDirections(startId, b){
+  const doorId = "d"+b.no;
+  if (startId === doorId) return {lines:["คุณอยู่หน้าอาคาร "+b.no+" แล้ว เดินเข้าประตูหน้าอาคารได้เลย"], meters:0, path:null};
+  const p = shortestPath(startId, doorId);
+  const groups = [];
+  p.roads.forEach((road, i) => {
+    const g = groups[groups.length-1];
+    if (g && g.road === road) g.to = i+1; else groups.push({road, from:i, to:i+1});
+  });
+  const nodes = p.nodes.map(id => N[id]);
+  const lines = [];
+  groups.forEach((g, gi) => {
+    const endName = nodes[g.to].name;
+    if (gi === 0) {
+      if (g.road === STUB) lines.push(`เดินออกจาก${N[startId].name.replace("ประตู","")} มาที่ถนน`);
+      else lines.push(`เริ่มที่${N[startId].name} เดินตาม${g.road}ไปจนถึง${endName}`);
+      return;
+    }
+    const at = nodes[g.from];
+    const t = turnAt(nodes[g.from-1], at, nodes[g.from+1]);
+    const lead = (gi === 1 && groups[0].road === STUB) ? "" : `ถึง${at.name} `;
+    if (g.road === STUB) {
+      const side = t === "left" ? "ทางซ้ายมือ" : t === "right" ? "ทางขวามือ" : "ตรงหน้า";
+      lines.push(`${lead}อาคาร ${b.no} จะอยู่${side} เดินเข้าประตูหน้าอาคาร`);
+    } else {
+      lines.push(`${lead}${TURN[t]}เข้า${g.road}${g.to < nodes.length-1 ? " ไปจนถึง"+endName : ""}`);
+    }
+  });
+  return {lines, meters: Math.max(10, Math.round(p.length*M_PER_UNIT/10)*10), path:nodes};
+}
+
+/* ---------- วาดแผนที่ ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("map");
+function el(tag, attrs, parent, text){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1),16);
+  const f = c => Math.max(0, Math.min(255, Math.round(c + (amt<0 ? c*amt : (255-c)*amt))));
+  return "#" + [n>>16, (n>>8)&255, n&255].map(f).map(v => v.toString(16).padStart(2,"0")).join("");
+}
+const INK = "#3e2c1f";
+
+function drawScene(){
+  const defs = el("defs", {}, svg);
+  const sky = el("linearGradient", {id:"skyG", x1:0, y1:0, x2:0, y2:1}, defs);
+  el("stop", {offset:0, "stop-color":"#9fdcf5"}, sky); el("stop", {offset:1, "stop-color":"#e2f6fb"}, sky);
+  el("rect", {x:0, y:0, width:400, height:200, fill:"url(#skyG)"}, svg);
+
+  const clouds = el("g", {fill:"#fff", opacity:.95}, svg);
+  [[48,118,1],[330,104,1.2],[268,40,.8],[30,40,.7]].forEach(([x,y,s]) => {
+    const g = el("g", {transform:`translate(${x} ${y}) scale(${s})`}, clouds);
+    el("ellipse", {cx:0, cy:0, rx:22, ry:9}, g); el("circle", {cx:-8, cy:-6, r:9}, g); el("circle", {cx:7, cy:-8, r:11}, g);
+  });
+
+  el("path", {d:"M0 150 Q 50 98 112 136 Q 170 88 240 130 Q 312 92 400 126 L400 220 L0 220Z", fill:"#7fc463", stroke:INK, "stroke-width":1.5}, svg);
+  el("path", {d:"M0 168 Q 82 138 162 160 Q 252 132 332 158 Q 372 148 400 152 L400 230 L0 230Z", fill:"#93d070", stroke:INK, "stroke-width":1.5}, svg);
+  el("rect", {x:0, y:170, width:400, height:590, fill:"#93d070"}, svg);
+  el("rect", {x:16, y:168, width:368, height:580, rx:18, fill:"#a9de86"}, svg);
+
+  // title sign
+  const title = el("text", {x:200, y:50, "text-anchor":"middle", "font-size":33, "font-weight":600, fill:"#ff7a45", stroke:"#fff", "stroke-width":7, "paint-order":"stroke", "stroke-linejoin":"round", style:"filter:drop-shadow(0 2px 0 rgba(62,44,31,.35))"}, svg, "ภักดีพณิชยการ");
+  const sub = el("g", {}, svg);
+  el("rect", {x:110, y:64, width:180, height:24, rx:12, fill:"#fff", stroke:INK, "stroke-width":1.5}, sub);
+  el("text", {x:200, y:81, "text-anchor":"middle", "font-size":12.5, fill:"#2e7d4f", "font-weight":500}, sub, "แผนที่นำทางภายในวิทยาลัย");
+  el("text", {x:200, y:104, "text-anchor":"middle", "font-size":10, fill:INK, opacity:.75}, svg, "ชี้หรือแตะอาคารเพื่อดูห้อง");
+
+  // fence with two gates
+  const fence = {fill:"none", stroke:"#b5845a", "stroke-width":5, "stroke-linecap":"round"};
+  el("path", {d:"M178 168 H34 Q16 168 16 186 V730 Q16 748 34 748 H178", ...fence}, svg);
+  el("path", {d:"M222 748 H366 Q384 748 384 730 V186 Q384 168 366 168 H222", ...fence}, svg);
+  el("path", {d:"M178 168 H34 Q16 168 16 186 V730 Q16 748 34 748 H178 M222 748 H366 Q384 748 384 730 V186 Q384 168 366 168 H222", fill:"none", stroke:"#e8c193", "stroke-width":1.5, "stroke-dasharray":"2 6"}, svg);
+
+  // roads
+  const roadLines = [[200,172,200,760],[40,470,360,470],[40,290,360,290],[70,612,330,612],[200,680,140,680]];
+  const rg = el("g", {}, svg);
+  roadLines.forEach(([a,b,c,d]) => el("line", {x1:a,y1:b,x2:c,y2:d, stroke:"#6f747d", "stroke-width":20, "stroke-linecap":"round"}, rg));
+  roadLines.forEach(([a,b,c,d]) => el("line", {x1:a,y1:b,x2:c,y2:d, stroke:"#9ca2ab", "stroke-width":16, "stroke-linecap":"round"}, rg));
+  roadLines.forEach(([a,b,c,d]) => el("line", {x1:a,y1:b,x2:c,y2:d, stroke:"#fff", "stroke-width":1.4, "stroke-dasharray":"6 6", opacity:.9}, rg));
+  BUILDINGS.forEach(b => el("rect", {x:b.cx-6, y:b.fy-2, width:12, height:N["n"+b.no].y-b.fy-4, fill:"#ead7ad", stroke:INK, "stroke-width":1}, rg));
+
+  // plaza + flag
+  el("circle", {cx:200, cy:470, r:26, fill:"#f1e3c4", stroke:INK, "stroke-width":1.5}, svg);
+  el("circle", {cx:200, cy:470, r:18, fill:"none", stroke:"#d9c49a", "stroke-width":1.5, "stroke-dasharray":"3 4"}, svg);
+  el("circle", {cx:200, cy:290, r:20, fill:"#f1e3c4", stroke:INK, "stroke-width":1.5}, svg);
+  el("circle", {cx:200, cy:290, r:9, fill:"#7cc6ea", stroke:INK, "stroke-width":1}, svg);
+  el("circle", {cx:200, cy:290, r:4, fill:"#e2f6fb"}, svg);
+  const flag = el("g", {transform:"translate(226 446)"}, svg);
+  el("ellipse", {cx:0, cy:2, rx:7, ry:3, fill:"#d4bf94", stroke:INK, "stroke-width":1}, flag);
+  el("line", {x1:0, y1:2, x2:0, y2:-40, stroke:INK, "stroke-width":2}, flag);
+  [["#d8343f",0],["#fff",2],["#22409a",4],["#fff",8],["#d8343f",10]].forEach(([c,y],i) =>
+    el("rect", {x:1, y:-40+y, width:22, height:i===2?4:2, fill:c}, flag));
+  el("rect", {x:1, y:-40, width:22, height:12, fill:"none", stroke:INK, "stroke-width":1}, flag);
+
+  // parking lot
+  const pk = el("g", {}, svg);
+  el("rect", {x:32, y:646, width:116, height:68, rx:10, fill:"#b4b9c2", stroke:INK, "stroke-width":1.5}, pk);
+  for (let i=0;i<5;i++) el("line", {x1:44+i*22, y1:650, x2:44+i*22, y2:666, stroke:"#fff", "stroke-width":1.5}, pk);
+  for (let i=0;i<5;i++) el("line", {x1:44+i*22, y1:694, x2:44+i*22, y2:710, stroke:"#fff", "stroke-width":1.5}, pk);
+  [[48,652,"#ff8a65"],[92,652,"#5aa9e6"],[70,696,"#ffd84a"],[114,696,"#9b7be0"]].forEach(([x,y,c]) => {
+    const car = el("g", {}, pk);
+    el("rect", {x, y, width:15, height:12, rx:3, fill:c, stroke:INK, "stroke-width":1}, car);
+    el("rect", {x:x+3, y:y+2.5, width:9, height:4, rx:1, fill:"#e8f6ff", stroke:INK, "stroke-width":.6}, car);
+  });
+  el("text", {x:58, y:686, "font-size":13, "font-weight":600, fill:"#fff", stroke:"#6f747d", "stroke-width":.6}, pk, "P");
+
+  // pond garden
+  const pond = el("g", {}, svg);
+  el("ellipse", {cx:304, cy:690, rx:54, ry:27, fill:"#7cc8ef", stroke:INK, "stroke-width":1.5}, pond);
+  el("ellipse", {cx:292, cy:684, rx:26, ry:8, fill:"#a9dcf5"}, pond);
+  [[322,700],[284,700],[336,684]].forEach(([x,y]) => el("ellipse", {cx:x, cy:y, rx:5, ry:3, fill:"#5fae4a", stroke:INK, "stroke-width":.7}, pond));
+  el("rect", {x:242, y:716, width:22, height:5, rx:2, fill:"#b5845a", stroke:INK, "stroke-width":.8}, pond);
+
+  // flowers
+  const fl = el("g", {}, svg);
+  [[160,520,"#ff8fb1"],[168,528,"#ffd84a"],[236,520,"#ff8fb1"],[244,512,"#fff"],[232,640,"#ffd84a"],[170,560,"#fff"],[30,640,"#ff8fb1"]].forEach(([x,y,c]) =>
+    el("circle", {cx:x, cy:y, r:2.6, fill:c, stroke:INK, "stroke-width":.6}, fl));
+
+  // trees
+  const tg = el("g", {}, svg);
+  [[34,330,11],[74,318,12],[128,334,10],[166,316,11],[236,324,11],[276,314,12],[330,330,10],[366,316,11],
+   [222,250,9],[34,506,10],[150,500,9],[254,500,9],[360,502,10],[248,654,10],[366,652,11],[366,726,9],[30,612,9],[370,612,9],
+   [30,230,9],[372,226,9]].forEach(([x,y,s]) => tree(tg, x, y, s));
+
+  // people near the plaza
+  [[182,498,"#ff7a45"],[218,500,"#5aa9e6"],[176,442,"#9b7be0"]].forEach(([x,y,c]) => {
+    const p = el("g", {}, svg);
+    el("rect", {x:x-3, y:y-2, width:6, height:8, rx:2.5, fill:c, stroke:INK, "stroke-width":.7}, p);
+    el("circle", {cx:x, cy:y-5, r:3, fill:"#f2c79c", stroke:INK, "stroke-width":.7}, p);
+  });
+
+  // gate pillars + signs
+  [[748,"ประตูหน้า",736],[168,"ประตูหลัง",160]].forEach(([y,label,ly]) => {
+    [176,224].forEach(x => {
+      el("rect", {x:x-5, y:y-9, width:10, height:16, rx:2, fill:"#e7c9a0", stroke:INK, "stroke-width":1.2}, svg);
+      el("rect", {x:x-6.5, y:y-12, width:13, height:4, rx:1.5, fill:"#b5845a", stroke:INK, "stroke-width":1}, svg);
+    });
+    const s = el("g", {}, svg);
+    el("rect", {x:236, y:ly-10, width:52, height:16, rx:8, fill:"#fff", stroke:INK, "stroke-width":1.2}, s);
+    el("text", {x:262, y:ly+2, "text-anchor":"middle", "font-size":9.5, fill:INK}, s, label);
+  });
+}
+function tree(parent, x, y, s){
+  const g = el("g", {}, parent);
+  el("ellipse", {cx:x+2, cy:y+s*.95, rx:s*.8, ry:s*.25, fill:"rgba(40,80,20,.22)"}, g);
+  el("rect", {x:x-1.6, y:y, width:3.2, height:s*.9, fill:"#9a6a44", stroke:INK, "stroke-width":.8}, g);
+  el("circle", {cx:x, cy:y-s*.35, r:s*.75, fill:"#4fa84a", stroke:INK, "stroke-width":1.1}, g);
+  el("circle", {cx:x-s*.42, cy:y-s*.1, r:s*.5, fill:"#5cb854", stroke:INK, "stroke-width":1.1}, g);
+  el("circle", {cx:x+s*.45, cy:y-s*.12, r:s*.5, fill:"#5cb854", stroke:INK, "stroke-width":1.1}, g);
+  el("circle", {cx:x-s*.2, cy:y-s*.55, r:s*.22, fill:"#8fd67f"}, g);
+}
+
+const bldLayer = el("g", {}, null);
+const routeLayer = el("g", {}, null);
+const pinLayer = el("g", {}, null);
+
+function drawBuilding(b){
+  const g = el("g", {class:"bld", "data-id":b.id, tabindex:0, role:"button", "aria-label":`อาคาร ${b.no} ${b.name} ${b.floors} ชั้น`}, bldLayer);
+  const {cx, fy, w, floors} = b;
+  const x0 = cx - w/2, h = floors*15 + 10, top = fy - h, dx = 16, dy = -10;
+  const side = shade(b.color, -.2), roofTop = shade(b.roof, .35);
+  el("ellipse", {cx:cx+8, cy:fy+2, rx:w/2+14, ry:7, fill:"rgba(40,80,20,.25)"}, g);
+  el("polygon", {points:`${x0+w},${fy} ${x0+w+dx},${fy+dy} ${x0+w+dx},${top+dy} ${x0+w},${top}`, fill:side, stroke:INK, "stroke-width":1.5, "stroke-linejoin":"round"}, g);
+  el("rect", {class:"bld-front", x:x0, y:top, width:w, height:h, fill:b.color, stroke:INK, "stroke-width":1.5}, g);
+  // windows
+  const n = Math.floor((w-12)/17), sp = (w-12)/n;
+  for (let f=0; f<floors; f++){
+    const wy = fy - 8 - (f+1)*15 + 4;
+    for (let i=0; i<n; i++){
+      const wx = x0 + 6 + i*sp + (sp-10)/2;
+      if (f === 0 && Math.abs(wx+5-cx) < 14) continue;
+      el("rect", {x:wx, y:wy, width:10, height:8, rx:1.5, fill:"#eaf7ff", stroke:INK, "stroke-width":.8}, g);
+      el("line", {x1:wx+2, y1:wy+6, x2:wx+5, y2:wy+2, stroke:"#fff", "stroke-width":1}, g);
+    }
+    el("polygon", {points:`${x0+w+5},${wy+1} ${x0+w+11},${wy-3} ${x0+w+11},${wy+5} ${x0+w+5},${wy+9}`, fill:"#d6ecf7", stroke:INK, "stroke-width":.7}, g);
+  }
+  let labelY;
+  if (b.style === "gable"){
+    el("polygon", {points:`${cx},${top-30} ${cx+dx},${top-30+dy} ${x0+w+6+dx},${top+dy} ${x0+w+6},${top}`, fill:shade(b.roof,-.15), stroke:INK, "stroke-width":1.5, "stroke-linejoin":"round"}, g);
+    el("polygon", {points:`${x0-6},${top} ${cx},${top-30} ${x0+w+6},${top}`, fill:b.roof, stroke:INK, "stroke-width":1.5, "stroke-linejoin":"round"}, g);
+    el("polygon", {points:`${x0+16},${top-3} ${cx},${top-23} ${x0+w-16},${top-3}`, fill:roofTop, stroke:INK, "stroke-width":1}, g);
+    el("circle", {cx, cy:top-12, r:4, fill:"#ffd84a", stroke:INK, "stroke-width":1}, g);
+    el("path", {d:`M${x0-6} ${top} q-5 -2 -6 -9 M${x0+w+6} ${top} q5 -2 6 -9 M${cx} ${top-30} q0 -6 4 -9`, fill:"none", stroke:INK, "stroke-width":1.5, "stroke-linecap":"round"}, g);
+    labelY = top - 44;
+  } else {
+    el("polygon", {points:`${x0},${top} ${x0+w},${top} ${x0+w+dx},${top+dy} ${x0+dx},${top+dy}`, fill:roofTop, stroke:INK, "stroke-width":1.5, "stroke-linejoin":"round"}, g);
+    el("rect", {x:x0-3, y:top-4, width:w+6, height:7, rx:2, fill:b.roof, stroke:INK, "stroke-width":1.3}, g);
+    el("polygon", {points:`${x0+w+3},${top-4} ${x0+w+dx+3},${top-4+dy} ${x0+w+dx+3},${top+3+dy} ${x0+w+3},${top+3}`, fill:shade(b.roof,-.2), stroke:INK, "stroke-width":1.2}, g);
+    if (b.lift) el("rect", {x:cx-6+dx/2, y:top+dy-8, width:12, height:9, rx:1.5, fill:b.roof, stroke:INK, "stroke-width":1.1}, g);
+    labelY = top + dy - (b.lift ? 22 : 16);
+  }
+  if (b.style === "canteen"){
+    for (let i=0;i<10;i++) el("rect", {x:x0-2+i*(w+4)/10, y:fy-22, width:(w+4)/10, height:6, fill:i%2 ? "#fff" : b.roof}, g);
+    el("rect", {x:x0-2, y:fy-22, width:w+4, height:6, fill:"none", stroke:INK, "stroke-width":1}, g);
+  }
+  el("rect", {x:cx-8, y:fy-13, width:16, height:13, rx:2, fill:"#8b5a3c", stroke:INK, "stroke-width":1.2}, g);
+  el("line", {x1:cx, y1:fy-13, x2:cx, y2:fy, stroke:INK, "stroke-width":.8}, g);
+  // label pill
+  const pill = el("g", {class:"pill", transform:`translate(${cx+dx/2} ${labelY})`}, g);
+  const bg = el("rect", {class:"pill-bg", x:-40, y:-10, width:80, height:20, rx:10, fill:"#fff", stroke:INK, "stroke-width":1.5}, pill);
+  const badge = el("circle", {cx:-30, cy:0, r:8, fill:b.roof, stroke:INK, "stroke-width":1.2}, pill);
+  const num = el("text", {x:-30, y:3.6, "text-anchor":"middle", "font-size":10, "font-weight":600, fill:"#fff"}, pill, b.no);
+  const txt = el("text", {class:"pill-text", x:0, y:3.6, "font-size":9.5, fill:INK, "font-weight":500}, pill, b.short);
+  b.pill = {bg, badge, num, txt};
+  b.g = g;
+}
+function layoutPills(){
+  BUILDINGS.forEach(b => {
+    const tw = b.pill.txt.getComputedTextLength();
+    const total = 16 + 5 + tw + 16;
+    const left = -total/2;
+    b.pill.bg.setAttribute("x", left); b.pill.bg.setAttribute("width", total);
+    b.pill.badge.setAttribute("cx", left+12); b.pill.num.setAttribute("x", left+12);
+    b.pill.txt.setAttribute("x", left+25);
+  });
+}
+
+drawScene();
+svg.appendChild(bldLayer);
+[...BUILDINGS].sort((a,b) => a.fy - b.fy || a.cx - b.cx).forEach(drawBuilding);
+svg.appendChild(routeLayer);
+svg.appendChild(pinLayer);
+layoutPills();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(layoutPills);
+
+/* ---------- "คุณอยู่ที่นี่" ---------- */
+function drawPin(id){
+  pinLayer.textContent = "";
+  const p = N[id];
+  const g = el("g", {transform:`translate(${p.x} ${p.y})`}, pinLayer);
+  el("ellipse", {class:"pulse", cx:0, cy:0, rx:9, ry:4, fill:"#2f6fd6", opacity:.5}, g);
+  el("path", {d:"M0 0 C-4 -6 -10 -11 -10 -17 A10 10 0 1 1 10 -17 C10 -11 4 -6 0 0Z", fill:"#2f6fd6", stroke:"#fff", "stroke-width":2}, g);
+  el("circle", {cx:0, cy:-17, r:4, fill:"#fff"}, g);
+  const lab = el("g", {transform:"translate(0 -38)"}, g);
+  el("rect", {x:-32, y:-9, width:64, height:17, rx:8.5, fill:"#2f6fd6", stroke:"#fff", "stroke-width":1.5}, lab);
+  el("text", {x:0, y:3.2, "text-anchor":"middle", "font-size":9, fill:"#fff", "font-weight":500}, lab, "คุณอยู่ที่นี่");
+}
+
+/* ---------- popup อาคาร ---------- */
+const pop = document.getElementById("pop");
+const mapwrap = document.getElementById("mapwrap");
+const narrowPop = matchMedia("(max-width:639px)");
+let openB = null, pinned = false, selectedRoom = null, hideTimer = null;
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function renderPop(b){
+  const floors = [...new Set(b.rooms.map(r => r.floor))].sort((a,c) => a-c);
+  pop.innerHTML = `
+    <div class="pop-head">
+      <span class="badge" style="background:${b.roof};color:#fff">${b.no}</span>
+      <div class="pop-title"><h2>อาคาร ${b.no} ${esc(b.name.replace("อาคาร",""))}</h2>
+        <p>${b.floors} ชั้น · ${b.lift ? "มีลิฟต์และบันได" : "ใช้บันได (ไม่มีลิฟต์)"} · ${b.rooms.length} ห้อง</p></div>
+      <button class="x-btn" type="button" data-close aria-label="ปิด">×</button>
+    </div>
+    <div class="pop-body">${floors.map(f => `
+      <div class="floor"><h3>ชั้น ${f}</h3>
+        ${b.rooms.filter(r => r.floor === f).map(r => `
+          <button class="room" type="button" data-code="${r.code}" aria-pressed="${selectedRoom === r}">
+            <span class="code">${r.code}</span><span class="rn">${esc(r.name)}</span></button>`).join("")}
+      </div>`).join("")}</div>
+    <div class="pop-foot">${selectedRoom && selectedRoom.b === b
+      ? `<p class="pick">ปลายทาง: <b>ห้อง ${selectedRoom.code} ${esc(selectedRoom.name)}</b> (ชั้น ${selectedRoom.floor})</p>
+         <button class="go" type="button" data-go>นำทาง <span aria-hidden="true">→</span></button>`
+      : `<p class="tip">แตะชื่อห้องเพื่อเลือกปลายทาง</p>`}</div>`;
+}
+function placePop(b){
+  if (narrowPop.matches){ pop.style.left = ""; pop.style.top = ""; return; }
+  const wr = mapwrap.getBoundingClientRect(), br = b.g.getBoundingClientRect();
+  const pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let left = br.right - wr.left + 10;
+  if (left + pw > wr.width + 140) left = br.left - wr.left - pw - 10;
+  left = Math.max(-140, Math.min(left, wr.width - pw + 140));
+  if (window.innerWidth < 900) left = Math.max(8, Math.min(left, wr.width - pw - 8));
+  let topPos = br.top - wr.top - 10;
+  topPos = Math.max(8, Math.min(topPos, wr.height - ph - 8));
+  pop.style.left = left + "px"; pop.style.top = topPos + "px";
+}
+function openPop(b, pin){
+  clearTimeout(hideTimer);
+  if (openB && openB !== b) openB.g.classList.remove("is-open");
+  if (selectedRoom && selectedRoom.b !== b) selectedRoom = null;
+  openB = b; if (pin) pinned = true;
+  b.g.classList.add("is-open");
+  renderPop(b); pop.hidden = false; placePop(b);
+}
+function closePop(){
+  clearTimeout(hideTimer);
+  if (openB) openB.g.classList.remove("is-open");
+  openB = null; pinned = false; pop.hidden = true;
+}
+function scheduleHide(){ clearTimeout(hideTimer); hideTimer = setTimeout(() => { if (!pinned) closePop(); }, 260); }
+
+BUILDINGS.forEach(b => {
+  b.g.addEventListener("pointerenter", e => { if (e.pointerType === "mouse" && (!pinned || openB === b)) openPop(b, false); else if (e.pointerType === "mouse" && pinned) {/* keep pinned popup */} });
+  b.g.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !pinned) scheduleHide(); });
+  b.g.addEventListener("click", e => { e.stopPropagation(); if (pinned && openB === b) return; openPop(b, true); });
+  b.g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPop(b, true); const first = pop.querySelector(".room"); if (first) first.focus(); } });
+});
+pop.addEventListener("pointerenter", () => clearTimeout(hideTimer));
+pop.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !pinned) scheduleHide(); });
+pop.addEventListener("click", e => {
+  e.stopPropagation();
+  if (e.target.closest("[data-close]")) { closePop(); return; }
+  const room = e.target.closest(".room");
+  if (room) {
+    pinned = true;
+    selectedRoom = ALL_ROOMS.find(r => r.code === room.dataset.code);
+    const scroll = pop.querySelector(".pop-body").scrollTop;
+    renderPop(openB); pop.querySelector(".pop-body").scrollTop = scroll;
+    placePop(openB);
+    const go = pop.querySelector("[data-go]"); if (go) go.focus({preventScroll:true});
+    return;
+  }
+  if (e.target.closest("[data-go]") && selectedRoom) startNav(selectedRoom);
+});
+svg.addEventListener("click", () => { if (pinned) closePop(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if (!qrModal.hidden) { qrModal.hidden = true; return; }
+  if (!pop.hidden) closePop();
+});
+window.addEventListener("resize", () => { if (openB && !pop.hidden) placePop(openB); });
+
+/* ---------- จุดเริ่มต้น ---------- */
+const startSel = document.getElementById("start");
+START_POINTS.forEach(s => startSel.add(new Option(s.label, s.id)));
+let startId = "gate";
+try { const saved = localStorage.getItem("bakdee-map-start"); if (saved && N[saved]) startId = saved; } catch (e) {}
+startSel.value = startId;
+drawPin(startId);
+startSel.addEventListener("change", () => {
+  startId = startSel.value;
+  try { localStorage.setItem("bakdee-map-start", startId); } catch (e) {}
+  drawPin(startId);
+  if (navRoom) startNav(navRoom, true);
+});
+
+/* ---------- นำทาง ---------- */
+const nav = document.getElementById("nav");
+const stage = document.getElementById("stage");
+let navRoom = null, walkerRaf = null;
+
+const POS_TEXT = {start:"ห้องอยู่ต้นทางเดิน ไม่ต้องเดินไกล", middle:"เดินไปกลางอาคาร", end:"เดินสุดอาคาร"};
+
+function corridorSVG(r){
+  const col = {start:0, middle:1, end:2}[r.pos];
+  const top = r.side === "left";
+  const boxes = [];
+  for (let c=0;c<3;c++) for (const t of [true,false]) {
+    const hit = c === col && t === top;
+    boxes.push(`<rect x="${64+c*80}" y="${t?6:62}" width="72" height="26" rx="5" fill="${hit?"#ff5a36":"#fff"}" stroke="#3e2c1f" stroke-width="${hit?2:1}" opacity="${hit?1:.55}"/>`);
+    if (hit) boxes.push(`<text x="${100+c*80}" y="${t?23.5:79.5}" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">ห้อง ${r.code}</text>`);
+  }
+  const tx = 100 + col*80, ty = top ? 34 : 60;
+  return `<svg viewBox="0 0 320 96" role="img" aria-label="ผังทางเดินชั้น ${r.floor}: ห้องอยู่${POS_TEXT[r.pos]} ${top?"ซ้าย":"ขวา"}มือ">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" fill="#ff5a36"/></marker></defs>
+    <rect x="56" y="36" width="256" height="24" rx="4" fill="#f3ead6" stroke="#3e2c1f" stroke-width="1"/>
+    <rect x="6" y="30" width="46" height="36" rx="6" fill="#3e2c1f"/>
+    <text x="29" y="46" text-anchor="middle" font-size="9" fill="#fff">${r.floor === 1 ? "ประตู" : r.b.lift ? "ลิฟต์/" : "บันได"}</text>
+    <text x="29" y="58" text-anchor="middle" font-size="9" fill="#fff">${r.floor === 1 ? "หน้า" : r.b.lift ? "บันได" : ""}</text>
+    ${boxes.join("")}
+    <polyline points="54,48 ${tx},48 ${tx},${ty+ (top?3:-3)}" fill="none" stroke="#ff5a36" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#ah)"/>
+    <text x="8" y="16" font-size="9.5" fill="#7b6a57">ซ้ายมือ</text>
+    <text x="8" y="88" font-size="9.5" fill="#7b6a57">ขวามือ</text>
+  </svg>`;
+}
+
+function startNav(r, keepSheet){
+  navRoom = r;
+  closePop();
+  const b = r.b;
+  const out = outdoorDirections(startId, b);
+  const minutes = Math.max(1, Math.round(out.meters / 70));
+  const sideTxt = r.side === "left" ? "ซ้ายมือ" : "ขวามือ";
+  const steps = [];
+  steps.push(`<li><div class="st"><h3>เดินไปที่อาคาร ${b.no}</h3>
+      <p>${out.meters ? `ระยะประมาณ ${out.meters} ม. · เดิน ${minutes} นาที` : esc(b.name)}</p>
+      <ul class="sub">${out.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul></div></li>`);
+  if (r.floor > 1) {
+    steps.push(`<li><div class="st"><h3>${b.lift ? "ขึ้นลิฟต์หรือบันได" : "ขึ้นบันได"}ไปชั้นที่ ${r.floor}</h3>
+      <p>${b.lift ? "ลิฟต์และบันไดอยู่โถงกลาง ถัดจากประตูหน้า" : "อาคารนี้ไม่มีลิฟต์ บันไดอยู่ติดประตูหน้า"}</p></div></li>`);
+  } else {
+    steps.push(`<li><div class="st"><h3>ห้องอยู่ชั้น 1</h3><p>ไม่ต้องขึ้นบันได เข้าประตูหน้าแล้วเลี้ยวเข้าทางเดิน</p></div></li>`);
+  }
+  steps.push(`<li><div class="st"><h3>${POS_TEXT[r.pos]} ห้องจะอยู่${sideTxt}</h3>
+      <p>นับจาก${r.floor === 1 ? "ประตูหน้า" : (b.lift ? "ลิฟต์/บันได" : "บันได")} เดินไปตามทางเดินของชั้น ${r.floor}</p>
+      <div class="corridor">${corridorSVG(r)}</div></div></li>`);
+  steps.push(`<li class="done"><div class="st"><h3>ถึงแล้ว: ห้อง ${r.code}</h3><p>${esc(r.name)}${r.note ? " · " + esc(r.note) : ""}</p></div></li>`);
+
+  nav.innerHTML = `
+    <div class="nav-head">
+      <div class="t"><p class="eyebrow">นำทางไป</p><h2>${esc(r.name)}</h2>
+        <div class="chips"><span class="chip">ห้อง ${r.code}</span><span class="chip">อาคาร ${b.no} ชั้น ${r.floor}</span><span class="chip">จาก${esc(N[startId].name.replace("ประตูอาคาร","หน้าอาคาร"))}</span></div></div>
+      <button class="x-btn min-btn" type="button" data-min aria-label="ย่อหรือขยายขั้นตอน">${nav.classList.contains("min") ? "▴" : "▾"}</button>
+      <button class="x-btn" type="button" data-endnav aria-label="ปิดการนำทาง">×</button>
+    </div>
+    <ol class="steps">${steps.join("")}</ol>`;
+  if (!keepSheet) nav.classList.remove("min");
+  nav.querySelector("[data-min]").textContent = nav.classList.contains("min") ? "▴" : "▾";
+  nav.hidden = false;
+  nav.scrollTop = 0;
+  stage.classList.add("has-nav");
+  svg.classList.add("navigating");
+  BUILDINGS.forEach(x => x.g.classList.toggle("is-target", x === b));
+  drawRoute(out.path);
+  if (!keepSheet) {
+    if (window.innerWidth >= 960) mapwrap.scrollIntoView({block:"nearest", behavior:"smooth"});
+    else {
+      const r = b.g.getBoundingClientRect();
+      window.scrollTo({top: window.scrollY + r.top - window.innerHeight*0.12, behavior:"smooth"});
+    }
+  }
+}
+function endNav(){
+  navRoom = null;
+  nav.hidden = true;
+  stage.classList.remove("has-nav");
+  svg.classList.remove("navigating");
+  BUILDINGS.forEach(x => x.g.classList.remove("is-target"));
+  routeLayer.textContent = "";
+  cancelAnimationFrame(walkerRaf);
+}
+nav.addEventListener("click", e => {
+  if (e.target.closest("[data-endnav]")) endNav();
+  const m = e.target.closest("[data-min]");
+  if (m) { nav.classList.toggle("min"); m.textContent = nav.classList.contains("min") ? "▴" : "▾"; }
+});
+
+function drawRoute(nodes){
+  routeLayer.textContent = "";
+  cancelAnimationFrame(walkerRaf);
+  if (!nodes) return;
+  const d = nodes.map((p,i) => (i ? "L" : "M") + p.x + " " + p.y).join(" ");
+  el("path", {class:"route-under", d}, routeLayer);
+  const path = el("path", {class:"route-line", d}, routeLayer);
+  const end = nodes[nodes.length-1];
+  el("circle", {cx:end.x, cy:end.y, r:6, fill:"#ff5a36", stroke:"#fff", "stroke-width":2}, routeLayer);
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const walker = el("circle", {r:5.5, fill:"#fff", stroke:"#ff5a36", "stroke-width":3}, routeLayer);
+  const len = path.getTotalLength(), speed = 70;
+  let t0 = null;
+  const step = ts => {
+    if (t0 === null) t0 = ts;
+    const total = len / speed * 1000 + 900;
+    const k = ((ts - t0) % total) / (len / speed * 1000);
+    const pt = path.getPointAtLength(Math.min(1, k) * len);
+    walker.setAttribute("cx", pt.x); walker.setAttribute("cy", pt.y);
+    walkerRaf = requestAnimationFrame(step);
+  };
+  walkerRaf = requestAnimationFrame(step);
+}
+
+/* ---------- ค้นหาห้อง ---------- */
+const q = document.getElementById("q"), results = document.getElementById("results");
+let hits = [], active = 0;
+function norm(s){ return s.toLowerCase().replace(/\s+/g, ""); }
+function renderResults(){
+  const term = norm(q.value);
+  if (!term) { results.hidden = true; return; }
+  hits = ALL_ROOMS.filter(r => norm(r.name + r.code + r.b.name + "อาคาร" + r.b.no).includes(term)).slice(0, 12);
+  active = 0;
+  results.innerHTML = hits.length
+    ? hits.map((r,i) => `<li><button type="button" data-i="${i}" class="${i===0?"active":""}"><span class="code">${r.code}</span><span class="rn">${esc(r.name)}</span><span class="rm">อาคาร ${r.b.no} ${esc(r.b.short)} · ชั้น ${r.floor}</span></button></li>`).join("")
+    : `<li class="none">ไม่พบห้องที่ตรงกับ “${esc(q.value)}” ลองพิมพ์ชื่อสั้นลง หรือเลขห้อง 4 หลัก</li>`;
+  results.hidden = false;
+}
+function pickHit(r){
+  results.hidden = true; q.value = ""; q.blur();
+  selectedRoom = r; openPop(r.b, true);
+  const btn = pop.querySelector(`[data-code="${r.code}"]`);
+  if (btn) btn.scrollIntoView({block:"nearest"});
+  if (!narrowPop.matches) r.b.g.scrollIntoView({block:"center", behavior:"smooth"});
+  setTimeout(() => placePop(r.b), 350);
+}
+q.addEventListener("input", renderResults);
+q.addEventListener("focus", renderResults);
+q.addEventListener("keydown", e => {
+  if (results.hidden || !hits.length) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    active = (active + (e.key === "ArrowDown" ? 1 : hits.length-1)) % hits.length;
+    results.querySelectorAll("button").forEach((b,i) => b.classList.toggle("active", i === active));
+  } else if (e.key === "Enter") { e.preventDefault(); pickHit(hits[active]); }
+  else if (e.key === "Escape") results.hidden = true;
+});
+results.addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) pickHit(hits[+b.dataset.i]); });
+document.addEventListener("click", e => { if (!e.target.closest(".search")) results.hidden = true; });
+
+/* ---------- QR ---------- */
+const qrModal = document.getElementById("qrModal");
+let qrMade = false;
+document.getElementById("qrBtn").addEventListener("click", () => {
+  const url = SHARE_URL;
+  document.getElementById("shareLink").value = url || "ยังไม่ได้ตั้งลิงก์";
+  if (!qrMade && url && window.QRCode) {
+    new QRCode(document.getElementById("qrBox"), {text:url, width:220, height:220, colorDark:"#3e2c1f", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M});
+    qrMade = true;
+  } else if (!url) document.getElementById("qrBox").textContent = "ยังไม่ได้ตั้งลิงก์ของหน้านี้";
+  qrModal.hidden = false;
+});
+qrModal.addEventListener("click", e => { if (e.target === qrModal || e.target.closest("[data-close]")) qrModal.hidden = true; });
+document.getElementById("copyBtn").addEventListener("click", e => {
+  const input = document.getElementById("shareLink"), btn = e.currentTarget;
+  const done = () => { btn.textContent = "คัดลอกแล้ว"; setTimeout(() => btn.textContent = "คัดลอก", 1500); };
+  (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).then(done, () => { input.select(); });
+});
+
+/* ---------- ลิงก์ตรงไปห้อง เช่น #r4301 ---------- */
+const m = /^#r(\d{4})$/.exec(location.hash);
+if (m) { const r = ALL_ROOMS.find(x => x.code === m[1]); if (r) startNav(r); }
+</script>
+
+</html>
